@@ -43,6 +43,15 @@ module.exports = function(grunt) {
     }
 
     grunt.verbose.writeln("Options: " + util.inspect(opts));
+    //Grab specs from config file to put on the command line
+    var specs = [];
+    if (!grunt.util._.isUndefined(opts.configFile)) {
+      specs = require(path.join(process.cwd(), opts.configFile)).specs
+              .map((path)=>path.replace('../..', '.tmp/e2e'));
+    }
+    //merge the command-line specs and the specs from the config file
+    opts.args.specs = grunt.util._.compact(grunt.util._.union(opts.args.specs, specs));
+    grunt.verbose.writeln('Specs are: ' + util.inspect(opts.args.specs));
 
     var keepAlive = opts['keepAlive'];
     var strArgs = ["seleniumAddress", "seleniumServerJar", "seleniumPort", "baseUrl", "rootElement", "browser", "chromeDriver", "chromeOnly", "directConnect", "sauceUser", "sauceKey", "sauceSeleniumAddress", "framework", "frameworkPath", "suite", "beforeLaunch", "onPrepare", "webDriverProxy"];
@@ -102,11 +111,11 @@ module.exports = function(grunt) {
             // Skip these types
           } else if (type === "boolean") {
             // Add --[object].key
-	    if (val) {
-		args.push(prefix+"."+key);
-	    } else {
-		args.push("--no"+prefix.substring(1)+"."+key);
-	    }
+            if (val) {
+              args.push(prefix+"."+key);
+            } else {
+              args.push("--no"+prefix.substring(1)+"."+key);
+            }
           } else {
             // Add --[object].key value
             args.push(prefix+"."+key, val);
@@ -115,11 +124,41 @@ module.exports = function(grunt) {
       })("--" + a, grunt.option(a) || opts.args[a], args);
     });
 
+    let testAttempt = 1;
+
+    var failedSpecParser = function(output) {
+      if (output == undefined) output = '';
+      let match = null;
+      let CUCUMBERJS_TEST = /^\d+ scenarios?/m;
+      let failedSpecs = {};
+
+      if (CUCUMBERJS_TEST.test(output)) {
+        let FAILED_LINES = /(.*?):\d+ # Scenario:.*/g;
+        while (match = FAILED_LINES.exec(output)) { // eslint-disable-line no-cond-assign
+          failedSpecs[match[1]] = true;
+        }
+      } else {
+        let FAILED_LINES = /at (?:\[object Object\]|Object)\.<anonymous> \((([A-Za-z]:\\)?.*?):.*\)/g
+        while (match = FAILED_LINES.exec(output)) { // eslint-disable-line no-cond-assign
+          // windows output includes stack traces from
+          // webdriver so we filter those out here
+          if (!/node_modules/.test(match[1])) {
+            failedSpecs[match[1]] = true;
+          }
+        }
+      }
+
+      return Object.keys(failedSpecs);
+    };
 
     // Spawn protractor command
     var done = this.async();
     var startProtractor = function(){
       grunt.verbose.writeln("Spawn node with arguments: " + args.join(" "));
+
+      //store the output to a variable so we can parse it if there's an error
+      let output = '';
+
       var child = grunt.util.spawn({
           cmd: opts.nodeBin,
           args: args,
@@ -130,9 +169,17 @@ module.exports = function(grunt) {
         function(error, result, code) {
           if (error) {
             grunt.log.error(String(result));
-            if(code === 1 && keepAlive) {
+            if(code === 1 && keepAlive && (++testAttempt <= 3) ) {
               // Test fails but do not want to stop the grunt process.
-              grunt.log.oklns("Test failed but keep the grunt process alive.");
+              grunt.log.oklns("Test failed but keep the grunt process alive. Retry failed specs.");
+              let failedSpecs = failedSpecParser(output).map((failedSpec)=>failedSpec.replace(path.join(process.cwd(), 'test'), '.tmp'));
+              grunt.log.writeln('Re-running tests: test attempt ' + testAttempt);
+              grunt.log.writeln('Re-running the following test files:\n' + failedSpecs.join('\n'));
+
+              if (args.indexOf('--specs') != -1)
+                args.splice(args.indexOf('--specs'), 2); //delete old specs from array
+              args.push('--specs', failedSpecs.join(',')); //add failed specs
+              return startProtractor();
             } else {
               // Test fails and want to stop the grunt process,
               // or protractor exited with other reason.
@@ -140,7 +187,6 @@ module.exports = function(grunt) {
             }
           }
           done();
-          done = null;
         }
       );
       try {
@@ -150,6 +196,8 @@ module.exports = function(grunt) {
         grunt.log.debug("Non-fatal: stdin cannot be piped in this shell");
       }
       child.stdout.pipe(process.stdout);
+      //keep output for parsing in case of failure
+      child.stdout.on('data', (buffer) => output+=buffer.toString());
       child.stderr.pipe(process.stderr);
 
       // Write the result in the output file

@@ -1,8 +1,8 @@
 {
-  "name": "grunt-protractor-runner",
-  "description": "A Grunt plugin for running protractor runner.",
+  "name": "grunt-protractor-rerunner",
+  "description": "A Grunt plugin for running protractor runner and retrying failed specs.",
   "version": "3.2.0",
-  "homepage": "https://github.com/teerapap/grunt-protractor-runner",
+  "homepage": "https://github.com/nc-desain/grunt-protractor-rerunner",
   "author": {
     "name": "Teerapap Changwichukarn",
     "email": "teerapap.c@gmail.com"
@@ -10,7 +10,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/teerapap/grunt-protractor-runner.git"
+    "url": "git://github.com/nc-desain/grunt-protractor-rerunner.git"
   },
   "bugs": {
     "url": "https://github.com/teerapap/grunt-protractor-runner/issues"
