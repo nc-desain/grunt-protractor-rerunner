@@ -1,4 +1,4 @@
-# grunt-protractor-runner
+# grunt-protractor-rerunner
 
 [![Build Status](https://travis-ci.org/teerapap/grunt-protractor-runner.svg?branch=master)](https://travis-ci.org/teerapap/grunt-protractor-runner)
 
