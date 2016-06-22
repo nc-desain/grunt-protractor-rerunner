@@ -16,6 +16,12 @@ var through2 = require('through2');
 
 module.exports = function(grunt) {
 
+  function yell(thing) {
+    grunt.log.writeln(thing);
+    grunt.verbose.writeln(thing);
+    console.log(thing);
+  }
+
   grunt.registerMultiTask('protractor', 'A grunt task to run protractor.', function() {
 
     // '.../node_modules/protractor/lib/protractor.js'
@@ -43,6 +49,7 @@ module.exports = function(grunt) {
     }
 
     grunt.verbose.writeln("Options: " + util.inspect(opts));
+    yell( "Options: " + util.inspect(args));
     //Grab specs from config file to put on the command line
     var specs = [];
     if (!grunt.util._.isUndefined(opts.configFile)) {
@@ -53,6 +60,7 @@ module.exports = function(grunt) {
     //merge the command-line specs and the specs from the config file
     opts.args.specs = grunt.util._.compact(grunt.util._.union(opts.args.specs, specs));
     grunt.verbose.writeln('Specs are: ' + util.inspect(opts.args.specs));
+    yell("SPECS ARE: " + util.inspect(opts.args.specs));
 
     var keepAlive = opts['keepAlive'];
     var strArgs = ["seleniumAddress", "seleniumServerJar", "seleniumPort", "baseUrl", "rootElement", "browser", "chromeDriver", "chromeOnly", "directConnect", "sauceUser", "sauceKey", "sauceSeleniumAddress", "framework", "frameworkPath", "suite", "beforeLaunch", "onPrepare", "webDriverProxy"];
@@ -156,6 +164,7 @@ module.exports = function(grunt) {
     var done = this.async();
     var startProtractor = function(){
       grunt.verbose.writeln("Spawn node with arguments: " + args.join(" "));
+      yell("NODE SPAWNING WITH ARGS" + util.inspect(args));
 
       //store the output to a variable so we can parse it if there's an error
       var output = '';
@@ -177,10 +186,14 @@ module.exports = function(grunt) {
               var failedSpecs = failedSpecParser(output).map(function(failedSpec){return failedSpec.replace(path.join(process.cwd(), 'test'), '.tmp');});
               grunt.log.writeln('Re-running tests: test attempt ' + testAttempt);
               grunt.log.writeln('Re-running the following test files:\n' + failedSpecs.join('\n'));
+              yell("attempt" + testAttempt + " rerunning " + util.inspect(failedSpecs));
 
               if (args.indexOf('--specs') != -1)
                 args.splice(args.indexOf('--specs'), 2); //delete old specs from array
               args.push('--specs', failedSpecs.join(',')); //add failed specs
+
+              yell("NEW ARGS " + util.inspect(args));
+
               return startProtractor();
             } else {
               // Test fails and want to stop the grunt process,
