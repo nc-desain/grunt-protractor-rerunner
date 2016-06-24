@@ -175,12 +175,16 @@ module.exports = function(grunt) {
               grunt.log.oklns("Test failed but keep the grunt process alive. Retry failed specs.");
               //let failedSpecs = failedSpecParser(output).map((failedSpec)=>failedSpec.replace(path.join(process.cwd(), 'test'), '.tmp'));
               var failedSpecs = failedSpecParser(output).map(function(failedSpec){return failedSpec.replace(path.join(process.cwd(), 'test'), '.tmp');});
-              grunt.log.writeln('Re-running tests: test attempt ' + testAttempt);
-              grunt.log.writeln('Re-running the following test files:\n' + failedSpecs.join('\n'));
 
-              if (args.indexOf('--specs') != -1)
-                args.splice(args.indexOf('--specs'), 2); //delete old specs from array
-              args.push('--specs', failedSpecs.join(',')); //add failed specs
+              grunt.log.writeln('Re-running tests: test attempt ' + testAttempt);
+
+              if (failedSpecs.length > 0) {
+                grunt.log.writeln("Re-running tests: retrying the following specs:\n" + failedSpecs.join('\n'));
+                if (args.indexOf('--specs') != -1)
+                  args.splice(args.indexOf('--specs'), 2); //delete old specs from array
+                args.push('--specs', failedSpecs.join(',')); //add failed specs
+              } else grunt.log.writeln("Re-running tests: Protractor failed with no specific failed specs - retrying all specs");
+              
               return startProtractor();
             } else {
               // Test fails and want to stop the grunt process,
